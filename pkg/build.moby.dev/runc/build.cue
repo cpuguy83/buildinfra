@@ -3,7 +3,6 @@ package runc
 import (
 	"strings"
 
-	"universe.dagger.io/git"
 	"universe.dagger.io/docker"
 	"dagger.io/dagger"
 	"dagger.io/dagger/core"
@@ -13,7 +12,7 @@ import (
 	repo:     string | *"https://github.com/opencontainers/runc.git"
 	checkout: string | *"v1.1.4"
 
-	_pull: git.#Pull & {
+	_pull: core.#GitPull & {
 		remote:     repo
 		ref:        checkout
 		keepGitDir: true
@@ -37,20 +36,19 @@ import (
 	// This is useful when the runc source is not from a git repo (e.g. no .git dir).
 	commit?: string
 
-	_mounts: {
-		gomod: core.#Mount & {
-			type:     "cache"
-			contents: core.#CacheDir & {
-				id: "gomod"
-			}
-			dest: "/go/pkg/mod"
+	// list of cache mounts to use during build
+	// Examples for this might be /go/pkg/mod and /root/.cache/go-build
+	// This is provided so callers can manage their own caches if needed.
+	//
+	// Note that go has issues with caching (or rather invalidating) cgo code.
+	// If you build multiple platforms (or different linux distros even), this
+	// could cause issues unless you scope the cache id to the platform/distro.
+	cacheMounts: [dest=string]: core.#CacheDir | *{
+		"/go/pkg/mod": core.#CacheDir & {
+			id: "gomod"
 		}
-		gobuild: core.#Mount & {
-			type:     "cache"
-			contents: core.#CacheDir & {
-				id: "gobuild"
-			}
-			dest: "/root/.cache/gobuild"
+		"/root/.cache/go-build": core.#CacheDir & {
+			id: "gobuild"
 		}
 	}
 
@@ -69,10 +67,19 @@ import (
 		config: input.config
 	}
 
+	_mounts: {
+		for dest, cache in cacheMounts {
+			"\(dest)": core.#Mount & {
+				"dest":   dest
+				contents: cache
+			}
+		}
+	}
+
 	_bin: docker.#Run & {
-		"input": _input
-		mounts:  _mounts
-		workdir: "/go/src/github.com/opencontainers/runc"
+		"input":  _input
+		"mounts": _mounts
+		workdir:  "/go/src/github.com/opencontainers/runc"
 		env: {
 			if tags != _|_ {
 				BUILDTAGS: strings.Join(tags, " ")
@@ -82,8 +89,8 @@ import (
 			}
 		}
 		command: {
-			name: "/bin/sh"
-			flags: "-c": "make runc"
+			name: "make"
+			args: ["runc"]
 		}
 	}
 
@@ -95,13 +102,13 @@ import (
 		"input": _input
 		mounts: {
 			_mounts
-			mansh: core.#Mount & {
+			"_scripts": core.#Mount & {
 				contents: _scripts.output
-				dest:     "/tmp/build"
+				dest:     "/tmp/_internal/scripts/build"
 			}
 		}
 		workdir: "/go/src/github.com/opencontainers/runc"
-		command: name: "/tmp/build/man.sh"
+		command: name: "/tmp/_internal/scripts/build/man.sh"
 	}
 
 	bin: core.#Copy & {
