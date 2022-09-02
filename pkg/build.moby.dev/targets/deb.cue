@@ -13,7 +13,6 @@ import (
 		cachePrefix: prefix
 		packages: {
 			"libseccomp-dev": {}
-			"go-md2man": {}
 		}
 	}
 }

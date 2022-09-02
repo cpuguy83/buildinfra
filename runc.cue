@@ -3,7 +3,9 @@ package main
 import (
 	"dagger.io/dagger"
 	"universe.dagger.io/go"
+	"universe.dagger.io/docker"
 	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/runc"
+	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/md2man"
 	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/targets"
 )
 
@@ -26,15 +28,25 @@ dagger.#Plan & {
 			jammy:    _
 			buster:   _
 			bullseye: _
+			centos7:  _
+			rhel8:    _
+			rhel9:    _
 		}
 	}
 
 	actions: {
 		build: [id=string]: {
-			img:   targets.Targets[id]
-			_base: go.#Configure & {
-				input: img.output
-				ref:   "golang:\(client.env.GO_VERSION)"
+			_base: docker.#Build & {
+				steps: [
+					targets.Targets[id],
+					go.#Configure & {
+						ref: "golang:\(client.env.GO_VERSION)"
+					},
+					md2man.#Build & {
+						src: md2man.#Source
+					},
+
+				]
 			}
 			runc.#Build & {
 				input: _base.output
@@ -48,12 +60,16 @@ dagger.#Plan & {
 				}
 			}
 		}
+
 		build: {
 			bionic:   _
 			focal:    _
 			jammy:    _
 			buster:   _
 			bullseye: _
+			centos7:  _
+			rhel8:    _
+			rhel9:    _
 		}
 	}
 }
