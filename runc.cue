@@ -7,10 +7,13 @@ import (
 	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/targets"
 )
 
-let goVersion = "1.18"
-
 dagger.#Plan & {
 	client: {
+		env: {
+			GO_VERSION:   string | *"1.18"
+			RUNC_COMMIT?: string
+			RUNC_TAGS?:   string
+		}
 		filesystem: [id=string]: {
 			write: {
 				contents: actions.build[id].output
@@ -31,11 +34,18 @@ dagger.#Plan & {
 			img:   targets.Targets[id]
 			_base: go.#Configure & {
 				input: img.output
-				ref:   "golang:\(goVersion)"
+				ref:   "golang:\(client.env.GO_VERSION)"
 			}
 			runc.#Build & {
 				input: _base.output
-				src:   runc.#Source
+				src:   runc.#Source & {
+					if client.env.RUNC_COMMIT != _|_ {
+						checkout: client.env.RUNC_COMMIT
+					}
+				}
+				if client.env.RUNC_TAGS != _|_ {
+					tags: [client.env.RUNC_TAGS]
+				}
 			}
 		}
 		build: {
