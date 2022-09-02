@@ -35,14 +35,7 @@ import (
 	// Note that go has issues with caching (or rather invalidating) cgo code.
 	// If you build multiple platforms (or different linux distros even), this
 	// could cause issues unless you scope the cache id to the platform/distro.
-	cacheMounts: [dest=string]: core.#CacheDir | *{
-		"/go/pkg/mod": core.#CacheDir & {
-			id: "gomod"
-		}
-		"/root/.cache/go-build": core.#CacheDir & {
-			id: "gobuild"
-		}
-	}
+	cacheMounts: _ | *{}
 
 	_copy: core.#Copy & {
 		input:    dagger.#Scratch
@@ -59,18 +52,9 @@ import (
 		config: input.config
 	}
 
-	_mounts: {
-		for dest, cache in cacheMounts {
-			"\(dest)": core.#Mount & {
-				"dest":   dest
-				contents: cache
-			}
-		}
-	}
-
 	_bin: docker.#Run & {
 		"input":  _input
-		"mounts": _mounts
+		"mounts": cacheMounts
 		workdir:  "/go/src/github.com/cpuguy83/go-md2man"
 		command: name: "make"
 	}

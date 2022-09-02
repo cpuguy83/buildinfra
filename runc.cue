@@ -2,6 +2,7 @@ package main
 
 import (
 	"dagger.io/dagger"
+	"dagger.io/dagger/core"
 	"universe.dagger.io/go"
 	"universe.dagger.io/docker"
 	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/runc"
@@ -36,6 +37,20 @@ dagger.#Plan & {
 
 	actions: {
 		build: [id=string]: {
+			_cache: {
+				"gomod": core.#Mount & {
+					dest:     "/go/pkg/mod"
+					contents: core.#CacheDir & {
+						"id": "gomod"
+					}
+				}
+				"gobuild": core.#Mount & {
+					dest:     "/root/.cache/go-build"
+					contents: core.#CacheDir & {
+						"id": "gobuild-\(id)"
+					}
+				}
+			}
 			_base: docker.#Build & {
 				steps: [
 					targets.Targets[id],
@@ -43,14 +58,16 @@ dagger.#Plan & {
 						ref: "golang:\(client.env.GO_VERSION)"
 					},
 					md2man.#Build & {
-						src: md2man.#Source
+						src:         md2man.#Source
+						cacheMounts: _cache
 					},
 
 				]
 			}
 			runc.#Build & {
-				input: _base.output
-				src:   runc.#Source & {
+				input:       _base.output
+				cacheMounts: _cache
+				src:         runc.#Source & {
 					if client.env.RUNC_COMMIT != _|_ {
 						checkout: client.env.RUNC_COMMIT
 					}
