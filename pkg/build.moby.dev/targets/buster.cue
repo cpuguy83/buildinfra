@@ -5,15 +5,16 @@ import (
 	"universe.dagger.io/docker"
 )
 
-#Bionic: {
-	ref: core.#Ref | *"buildpack-deps:bionic"
+#Buster: {
+	ref: core.#Ref | *"buildpack-deps:buster"
 
 	_img: docker.#Pull & {
 		source: ref
 	}
 
-	#_Debbase & {
-		prefix: "bionic"
+	_build: #_Debbase & {
+		prefix: "buster"
 		input:  _img.output
 	}
+	output: _build.output
 }

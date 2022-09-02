@@ -18,8 +18,11 @@ dagger.#Plan & {
 			}
 		}
 		filesystem: {
-			bionic: _
-			focal:  _
+			bionic:   _
+			focal:    _
+			jammy:    _
+			buster:   _
+			bullseye: _
 		}
 	}
 
@@ -36,8 +39,11 @@ dagger.#Plan & {
 			}
 		}
 		build: {
-			bionic: _
-			focal:  _
+			bionic:   _
+			focal:    _
+			jammy:    _
+			buster:   _
+			bullseye: _
 		}
 	}
 }

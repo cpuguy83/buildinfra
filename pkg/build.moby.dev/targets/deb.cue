@@ -6,9 +6,11 @@ import (
 )
 
 #_Debbase: {
-	input: docker.#Image
+	input:  docker.#Image
+	prefix: string
 
 	apt.#Install & {
+		cachePrefix: prefix
 		packages: {
 			"libseccomp-dev": {}
 			"go-md2man": {}

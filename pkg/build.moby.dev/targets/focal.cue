@@ -13,7 +13,8 @@ import (
 	}
 
 	_build: #_Debbase & {
-		input: _img.output
+		prefix: "focal"
+		input:  _img.output
 	}
 	output: _build.output
 }
