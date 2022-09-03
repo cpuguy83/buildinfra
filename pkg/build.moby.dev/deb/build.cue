@@ -8,32 +8,6 @@ import (
 	"universe.dagger.io/docker"
 )
 
-#Compressor: {
-	output: docker.#Image
-	suffix: string
-}
-
-#Xz: {
-	suffix: "xz"
-	ref:    core.#Ref | *"buildpack-deps:jammy"
-	_pull:  docker.#Pull & {
-		source: ref
-	}
-
-	_set: core.#Set & {
-		input:  _pull.output.config
-		config: core.#ImageConfig & {
-			entrypoint: ["/bin/sh", "-c"]
-			cmd: ["tar -C ${SOURCE} --xz -cf ${DEST} ."]
-		}
-	}
-
-	output: docker.#Image & {
-		rootfs: _pull.output.rootfs
-		config: _set.output
-	}
-}
-
 #Build: {
 	data:       dagger.#FS
 	control:    #Control | dagger.#FS

@@ -9,14 +9,14 @@ import (
 
 dagger.#Plan & {
 	actions: test: {
-		compressXz: {
+		compressZstd: {
 			_testData: core.#WriteFile & {
 				input:    dagger.#Scratch
 				path:     "/foo"
 				contents: "foobar"
 			}
 
-			_compressor: deb.#Xz & {}
+			_compressor: deb.#Zstd & {}
 
 			_set: core.#Set & {
 				input:  _compressor.output.config
@@ -55,8 +55,8 @@ dagger.#Plan & {
 				}
 				command: {
 					name: "/bin/sh"
-					// Run this through xz first just to make sure it really is xz
-					flags: "-ec": "xz -d -c \(_set.config.env.DEST) | tar -C /tmp -xvf -"
+					// Run this through zstd first just to make sure it really is gzip
+					flags: "-ec": "zstd -d -c \(_set.config.env.DEST) | tar -C /tmp -xvf -"
 				}
 				export: files: {
 					"/tmp/foo": =~"foobar"
