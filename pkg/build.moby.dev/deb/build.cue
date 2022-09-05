@@ -5,76 +5,16 @@ import (
 
 	"dagger.io/dagger"
 	"dagger.io/dagger/core"
-	"universe.dagger.io/docker"
 )
 
 #Build: {
-	data:       dagger.#FS
-	control:    #Control | dagger.#FS
-	compressor: #Compressor
-
-	_setData: core.#Set & {
-		input:  compressor.output.config | compressor.config
-		config: core.#ImageConfig & {
-			env: {
-				input.env
-				SOURCE: "/tmp/compress"
-				DEST:   "/tmp/data.tar.\(compressor.suffix)"
-			}
-		}
-	}
-
-	_setControl: core.#Set & {
-		input:  compressor.output.config | compressor.config
-		config: core.#ImageConfig & {
-			env: {
-				input.env
-				SOURCE: "/tmp/compress"
-				DEST:   "/tmp/control.tar.\(compressor.suffix)"
-			}
-		}
-	}
-
-	_compressData: docker.#Run & {
-		input: docker.#Image & {
-			rootfs: compressor.output.rootfs | compressor.rootfs
-			config: _setData.output
-		}
-		mounts: {
-			"/tmp/compress": core.#Mount & {
-				contents: data
-				dest:     "/tmp/compress"
-			}
-		}
-	}
-
-	_compressControl: docker.#Run & {
-		input: docker.#Image & {
-			rootfs: compressor.output.rootfs | compressor.rootfs
-			config: _setControl.output
-		}
-		mounts: {
-			"/tmp/compress": core.#Mount & {
-				contents: control
-				dest:     "/tmp/compress"
-			}
-		}
-	}
-
-	_compressedData: core.#Subdir & {
-		input: _compressData.output
-		path:  "/tmp/compress"
-	}
-
-	_compressedControl: core.#Subdir & {
-		input: _compressControl.output
-		path:  "/tmp/compress"
-	}
+	data:    #Compressor | dagger.#FS
+	control: #Compressor | dagger.#FS
 
 	_merge: core.#Merge & {
 		inputs: {
-			_compressedData.output
-			_compressedControl.output
+			data.output | data
+			control.output | control
 		}
 	}
 }

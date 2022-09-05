@@ -5,6 +5,7 @@ import (
 	"dagger.io/dagger/core"
 	"github.com/cpuguy83/buildinfra/pkg/build.moby.dev/deb"
 	"universe.dagger.io/docker"
+	"universe.dagger.io/alpine"
 )
 
 dagger.#Plan & {
@@ -16,47 +17,28 @@ dagger.#Plan & {
 				contents: "foobar"
 			}
 
-			_compressor: deb.#Zstd & {}
+			_compress: deb.#Zstd & {
+				contents: _testData.output
+			}
 
-			_set: core.#Set & {
-				input:  _compressor.output.config
-				config: core.#ImageConfig & {
-					env: {
-						input.env
-						SOURCE: "/tmp/compress"
-						DEST:   "/tmp/test.tar.\(_compressor.suffix)"
+			_img: alpine.#Build & {
+				packages: {
+					zstd: _
+				}
+			}
+			docker.#Run & {
+				input: _img.output
+				mounts: {
+					"/tmp/compressed/": core.#Mount & {
+						contents: _compress.output
+						dest:     "/tmp/compressed/"
 					}
 				}
-			}
-
-			_compress: docker.#Run & {
-				input: docker.#Image & {
-					rootfs: _compressor.output.rootfs
-					config: _set.output
-				}
-				mounts: "/tmp/compress": core.#Mount & {
-					dest:     _set.config.env.SOURCE
-					contents: _testData.output
-				}
-			}
-
-			_config: core.#Set & {
-				input:  _compressor.output.config
-				config: core.#ImageConfig & {
-					entrypoint: []
-					cmd: []
-				}
-			}
-
-			docker.#Run & {
-				input: docker.#Image & {
-					rootfs: _compress.output.rootfs
-					config: _config.output
-				}
+				workdir: "/tmp/compressed"
 				command: {
 					name: "/bin/sh"
-					// Run this through zstd first just to make sure it really is gzip
-					flags: "-ec": "zstd -d -c \(_set.config.env.DEST) | tar -C /tmp -xvf -"
+					// Run this through zstd first just to make sure it really is zstd
+					flags: "-ec": "zstd -d -c \(_compress.name) | tar -C /tmp -xvf -"
 				}
 				export: files: {
 					"/tmp/foo": =~"foobar"

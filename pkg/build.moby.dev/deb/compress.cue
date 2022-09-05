@@ -4,77 +4,109 @@ import (
 	"dagger.io/dagger/core"
 	"universe.dagger.io/docker"
 	"universe.dagger.io/alpha/debian/apt"
+	"dagger.io/dagger"
 )
 
 #Compressor: {
-	output: docker.#Image
-	suffix: string
+	contents: dagger.#FS
+	output:   dagger.#FS
 }
 
 #Xz: {
-	suffix: "xz"
-	ref:    core.#Ref | *"buildpack-deps:jammy"
-	_pull:  docker.#Pull & {
+	ref:      core.#Ref | *"buildpack-deps:jammy"
+	contents: dagger.#FS
+	name:     string | *"contents.tar.xz"
+
+	_pull: docker.#Pull & {
 		source: ref
 	}
 
-	_set: core.#Set & {
-		input:  _pull.output.config
-		config: core.#ImageConfig & {
-			entrypoint: ["/bin/sh", "-c"]
-			cmd: ["tar -C ${SOURCE} --xz -cf ${DEST} ."]
+	_source: "/tmp/compress"
+	_dest:   "/tmp/xzout"
+
+	_run: docker.#Run & {
+		input: _pull.output
+		mounts: {
+			"\(_source)": core.#Mount & {
+				"contents": contents
+				dest:       _source
+			}
 		}
+		workdir: _dest
+		command: {
+			"name": "/bin/sh"
+			flags: "-c": "tar -C \(_source) --xz -cf \(_dest)/\(name) ."
+		}
+		export: directories: "\(_dest)": _
 	}
 
-	output: docker.#Image & {
-		rootfs: _pull.output.rootfs
-		config: _set.output
-	}
+	output: _run.export.directories[_dest]
 }
 
 #Gzip: {
-	suffix: "gz"
-	ref:    core.#Ref | *"buildpack-deps:jammy"
-	_pull:  docker.#Pull & {
+	ref:      core.#Ref | *"buildpack-deps:jammy"
+	contents: dagger.#FS
+	name:     string | *"contents.tar.gz"
+
+	_pull: docker.#Pull & {
 		source: ref
 	}
 
-	_set: core.#Set & {
-		input:  _pull.output.config
-		config: core.#ImageConfig & {
-			entrypoint: ["/bin/sh", "-c"]
-			cmd: ["tar -C ${SOURCE} -z -cf ${DEST} ."]
+	_source: "/tmp/compress"
+	_dest:   "/tmp/gzipout"
+
+	_run: docker.#Run & {
+		input: _pull.output
+		mounts: {
+			"\(_source)": core.#Mount & {
+				"contents": contents
+				dest:       _source
+			}
 		}
+		workdir: _dest
+		command: {
+			"name": "/bin/sh"
+			flags: "-c": "tar -C \(_source) -czf \(_dest)/\(name) ."
+		}
+		export: directories: "\(_dest)": _
 	}
 
-	output: docker.#Image & {
-		rootfs: _pull.output.rootfs
-		config: _set.output
-	}
+	output: _run.export.directories[_dest]
 }
 
 #Zstd: {
-	suffix: "zst"
-	ref:    core.#Ref | *"buildpack-deps:jammy"
-	_pull:  docker.#Pull & {
+	ref:      core.#Ref | *"buildpack-deps:jammy"
+	contents: dagger.#FS
+	name:     string | *"contents.tar.zst"
+
+	_pull: docker.#Pull & {
 		source: ref
 	}
 
+	_source: "/tmp/compress"
+	_dest:   "/tmp/zstout"
+
 	_install: apt.#Install & {
 		input: _pull.output
-		packages: zstd: _
+		packages: "zstd": _
+		// TODO: we need a cache prefix for this
 	}
 
-	_set: core.#Set & {
-		input:  _pull.output.config
-		config: core.#ImageConfig & {
-			entrypoint: ["/bin/sh", "-c"]
-			cmd: ["tar -C ${SOURCE} --zstd -cf ${DEST} ."]
+	_run: docker.#Run & {
+		input: _install.output
+		mounts: {
+			"\(_source)": core.#Mount & {
+				"contents": contents
+				dest:       _source
+			}
 		}
+		workdir: _dest
+		command: {
+			"name": "/bin/sh"
+			flags: "-c": "tar -C \(_source) --zstd -cf \(_dest)/\(name) ."
+		}
+		export: directories: "\(_dest)": _
 	}
 
-	output: docker.#Image & {
-		rootfs: _install.output.rootfs
-		config: _set.output
-	}
+	output: _run.export.directories[_dest]
 }
