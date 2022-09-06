@@ -3,7 +3,6 @@ package deb
 import (
 	"dagger.io/dagger/core"
 	"universe.dagger.io/docker"
-	"universe.dagger.io/alpha/debian/apt"
 	"dagger.io/dagger"
 )
 
@@ -13,19 +12,15 @@ import (
 }
 
 #Xz: {
-	ref:      core.#Ref | *"buildpack-deps:jammy"
+	input:    docker.#Image
 	contents: dagger.#FS
 	name:     string | *"contents.tar.xz"
-
-	_pull: docker.#Pull & {
-		source: ref
-	}
 
 	_source: "/tmp/compress"
 	_dest:   "/tmp/xzout"
 
 	_run: docker.#Run & {
-		input: _pull.output
+		"input": input
 		mounts: {
 			"\(_source)": core.#Mount & {
 				"contents": contents
@@ -44,19 +39,15 @@ import (
 }
 
 #Gzip: {
-	ref:      core.#Ref | *"buildpack-deps:jammy"
+	input:    docker.#Image
 	contents: dagger.#FS
 	name:     string | *"contents.tar.gz"
-
-	_pull: docker.#Pull & {
-		source: ref
-	}
 
 	_source: "/tmp/compress"
 	_dest:   "/tmp/gzipout"
 
 	_run: docker.#Run & {
-		input: _pull.output
+		"input": input
 		mounts: {
 			"\(_source)": core.#Mount & {
 				"contents": contents
@@ -75,25 +66,15 @@ import (
 }
 
 #Zstd: {
-	ref:      core.#Ref | *"buildpack-deps:jammy"
+	input:    docker.#Image
 	contents: dagger.#FS
 	name:     string | *"contents.tar.zst"
-
-	_pull: docker.#Pull & {
-		source: ref
-	}
 
 	_source: "/tmp/compress"
 	_dest:   "/tmp/zstout"
 
-	_install: apt.#Install & {
-		input: _pull.output
-		packages: "zstd": _
-		// TODO: we need a cache prefix for this
-	}
-
 	_run: docker.#Run & {
-		input: _install.output
+		"input": input
 		mounts: {
 			"\(_source)": core.#Mount & {
 				"contents": contents

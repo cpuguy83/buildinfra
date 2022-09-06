@@ -5,16 +5,35 @@ import (
 
 	"dagger.io/dagger"
 	"dagger.io/dagger/core"
+	"universe.dagger.io/docker"
 )
 
 #Build: {
-	data:    #Compressor | dagger.#FS
-	control: #Compressor | dagger.#FS
+	data:      #Compressor | dagger.#FS
+	control:   #Compressor | dagger.#FS
+	postinst?: dagger.#FS
 
 	_merge: core.#Merge & {
 		inputs: {
 			data.output | data
 			control.output | control
+		}
+	}
+
+	input: docker.#Image
+
+	_run: docker.#Run & {
+		"input": input
+		workdir: "/tmp/work"
+		mounts: {
+			"/tmp/work": core.#Mount & {
+				contents: _merge.output
+				dest:     "/tmp/work"
+			}
+		}
+		command: {
+			name: "/bin/sh"
+			flags: "-c": "ar r "
 		}
 	}
 }
@@ -33,7 +52,7 @@ import (
 	homepage:    string
 	description: string
 
-	core.#WriteFile & {
+	_write: core.#WriteFile & {
 		input:    dagger.#Scratch
 		path:     "/control"
 		contents: """
@@ -51,4 +70,6 @@ import (
             Description: \(description)
         """
 	}
+
+	output: _write.output
 }
